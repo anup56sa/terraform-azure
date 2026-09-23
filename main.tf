@@ -1,35 +1,93 @@
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-appservice-dev"
+  name     = "rg-vm-dev"
   location = "East US"
 }
 
-resource "azurerm_service_plan" "app_plan" {
-  name                = "asp-appservice-dev"
-  resource_group_name = azurerm_resource_group.rg.name
+resource "azurerm_virtual_network" "vnet" {
+  name                = "vnet-dev"
   location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
 
-  os_type  = "Linux"
-  sku_name = "B1"
+  address_space = ["10.0.0.0/16"]
 }
 
-resource "azurerm_linux_web_app" "app" {
-  name                = "appservice-dev-anup01"
+resource "azurerm_subnet" "subnet" {
+  name                 = "snet-vm"
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+
+  address_prefixes = ["10.0.1.0/24"]
+}
+
+resource "azurerm_public_ip" "pip" {
+  name                = "pip-vm-dev"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  allocation_method = "Static"
+  sku               = "Standard"
+}
+
+resource "azurerm_network_security_group" "nsg" {
+  name                = "nsg-vm-dev"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  security_rule {
+    name                       = "AllowSSH"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix     = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_network_interface" "nic" {
+  name                = "nic-vm-dev"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.subnet.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.pip.id
+  }
+}
+
+resource "azurerm_network_interface_security_group_association" "nsg" {
+  network_interface_id      = azurerm_network_interface.nic.id
+  network_security_group_id = azurerm_network_security_group.nsg.id
+}
+
+resource "azurerm_linux_virtual_machine" "vm" {
+  name                = "vm-dev"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 
-  service_plan_id = azurerm_service_plan.app_plan.id
+  size = "Standard_B1s"
 
-  https_only = true
+  admin_username                  = "azureuser"
+  admin_password                  = var.admin_password
+  disable_password_authentication = false
 
-  site_config {
-    always_on = true
+  network_interface_ids = [
+    azurerm_network_interface.nic.id
+  ]
 
-    application_stack {
-      node_version = "22-lts"
-    }
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
   }
 
-  app_settings = {
-    ENVIRONMENT = "dev"
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "ubuntu-24_04-lts"
+    sku       = "server"
+    version   = "latest"
   }
 }
