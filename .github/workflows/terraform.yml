@@ -9,7 +9,6 @@ on:
       - '.github/workflows/**'
     branches:
       - main
-      - dev
 
 permissions:
   id-token: write
