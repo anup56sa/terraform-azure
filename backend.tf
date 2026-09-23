@@ -1,7 +1,7 @@
 terraform {
   backend "azurerm" {
     resource_group_name  = "anup-rg"
-    storage_account_name = "terrastateanup01"
+    storage_account_name = "terrastoreanup01"
     container_name       = "storestatefile"
     key                  = "appservice/main.tfstate"
 
