@@ -3,7 +3,7 @@ terraform {
     resource_group_name  = "anup-rg"
     storage_account_name = "terrastateanup01"
     container_name       = "storestatefile"
-    key                  = "appservice/dev.tfstate"
+    key                  = "appservice/main.tfstate"
 
     use_oidc             = true
     use_azuread_auth     = true
