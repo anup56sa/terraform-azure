@@ -33,6 +33,11 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Test Storage DNS
+        run: |
+          nslookup terrastateanup01.blob.core.windows.net
+          curl -I https://terrastateanup01.blob.core.windows.net  
+
       - name: Terraform Init
         run: terraform init
 
