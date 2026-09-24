@@ -1,0 +1,14 @@
+
+# Local backend configuration
+backend-local.hcl
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Variable files containing secrets
+*.tfvars
+*.tfvars.json
