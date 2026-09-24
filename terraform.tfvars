@@ -1,1 +1,0 @@
-admin_password = "Anupboss@00"
