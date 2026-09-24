@@ -37,6 +37,11 @@ resource "azurerm_key_vault" "kv" {
   rbac_authorization_enabled = true
 }
 
+resource "azurerm_private_dns_zone" "keyvault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
 resource "azurerm_private_endpoint" "kv" {
   name                = "pe-keyvault-dev"
   location            = azurerm_resource_group.rg.location
@@ -49,4 +54,13 @@ resource "azurerm_private_endpoint" "kv" {
     subresource_names              = ["vault"]
     is_manual_connection           = false
   }
+
+  private_dns_zone_group {
+    name = "default"
+
+    private_dns_zone_ids = [
+      azurerm_private_dns_zone.keyvault.id
+    ]
+  }
 }
+
