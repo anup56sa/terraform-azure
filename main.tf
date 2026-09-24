@@ -1,93 +1,52 @@
 resource "azurerm_resource_group" "rg" {
-  name     = "rg-vm-dev"
+  name     = "rg-keyvault-dev"
   location = "Central US"
 }
 
 resource "azurerm_virtual_network" "vnet" {
-  name                = "vnet-dev"
+  name                = "vnet-keyvault-dev"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
   address_space = ["10.0.0.0/16"]
 }
 
-resource "azurerm_subnet" "subnet" {
-  name                 = "snet-vm"
+resource "azurerm_subnet" "private_endpoint" {
+  name                 = "snet-private-endpoint"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
 
   address_prefixes = ["10.0.1.0/24"]
+
+  private_endpoint_network_policies = "Disabled"
 }
 
-resource "azurerm_public_ip" "pip" {
-  name                = "pip-vm-dev"
+resource "azurerm_key_vault" "kv" {
+  name                = "kv-anup-dev-01"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  tenant_id           = "fba9c407-61bd-49e5-b51a-9d8e7915e91f"
 
-  allocation_method = "Static"
-  sku               = "Standard"
+  sku_name = "standard"
+
+  public_network_access_enabled = false
+
+  purge_protection_enabled   = false
+  soft_delete_retention_days = 7
+
+  rbac_authorization_enabled = true
 }
 
-resource "azurerm_network_security_group" "nsg" {
-  name                = "nsg-vm-dev"
+resource "azurerm_private_endpoint" "kv" {
+  name                = "pe-keyvault-dev"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  subnet_id           = azurerm_subnet.private_endpoint.id
 
-  security_rule {
-    name                       = "AllowSSH"
-    priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix     = "*"
-    destination_address_prefix = "*"
-  }
-}
-
-resource "azurerm_network_interface" "nic" {
-  name                = "nic-vm-dev"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = azurerm_subnet.subnet.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.pip.id
-  }
-}
-
-resource "azurerm_network_interface_security_group_association" "nsg" {
-  network_interface_id      = azurerm_network_interface.nic.id
-  network_security_group_id = azurerm_network_security_group.nsg.id
-}
-
-resource "azurerm_linux_virtual_machine" "vm" {
-  name                = "vm-dev"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-
-  size = "Standard_B1s"
-
-  admin_username                  = "azureuser"
-  admin_password                  = var.admin_password
-  disable_password_authentication = false
-
-  network_interface_ids = [
-    azurerm_network_interface.nic.id
-  ]
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
-    version   = "latest"
+  private_service_connection {
+    name                           = "psc-keyvault"
+    private_connection_resource_id = azurerm_key_vault.kv.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
   }
 }
