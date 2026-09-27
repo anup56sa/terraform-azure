@@ -64,3 +64,50 @@ resource "azurerm_private_endpoint" "kv" {
   }
 }
 
+resource "azurerm_resource_group" "function_rg" {
+  name     = "rg-function-dev"
+  location = "Central US"
+}
+
+resource "azurerm_storage_account" "function_storage" {
+  name                     = "funcstoragedev001"
+  resource_group_name      = azurerm_resource_group.function_rg.name
+  location                 = azurerm_resource_group.function_rg.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_service_plan" "function_plan" {
+  name                = "asp-function-dev"
+  resource_group_name = azurerm_resource_group.function_rg.name
+  location            = azurerm_resource_group.function_rg.location
+
+  os_type  = "Linux"
+  sku_name = "Y1"
+}
+
+resource "azurerm_linux_function_app" "function" {
+  name                = "func-anup-dev-001"
+  resource_group_name = azurerm_resource_group.function_rg.name
+  location            = azurerm_resource_group.function_rg.location
+
+  service_plan_id = azurerm_service_plan.function_plan.id
+
+  storage_account_name       = azurerm_storage_account.function_storage.name
+  storage_account_access_key = azurerm_storage_account.function_storage.primary_access_key
+
+  site_config {
+    application_stack {
+      python_version = "3.11"
+    }
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  app_settings = {
+    FUNCTIONS_WORKER_RUNTIME = "python"
+    FUNCTIONS_EXTENSION_VERSION = "~4"
+  }
+}
